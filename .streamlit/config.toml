@@ -1,0 +1,10 @@
+[server]
+# 사진 5장이면 충분하다. 크게 열어두면 남이 대용량 업로드로 괴롭힐 수 있다.
+maxUploadSize = 30
+
+[browser]
+gatherUsageStats = false
+
+[theme]
+base = "light"
+primaryColor = "#e8503a"

@@ -1,0 +1,13 @@
+# 비밀 값. 절대 커밋하지 말 것.
+.env
+.streamlit/secrets.toml
+
+.cache/
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+
+# 로컬 개발 도구 설정. .venv 안을 가리키는 심볼릭 링크라 올리면 깨진다.
+.claude/
+.agents/

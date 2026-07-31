@@ -1,8 +1,11 @@
-streamlit>=1.40
-google-genai>=1.0
-pydantic>=2.9
-python-dotenv>=1.0
-pillow>=11.0
+# 상한을 두는 이유: 클라우드는 배포할 때마다 최신판을 새로 설치한다.
+# 상한이 없으면 어느 날 새 메이저 버전이 깔려서, 로컬에서는 멀쩡한 앱이
+# 배포본에서만 깨지는 상황이 생긴다.
+streamlit>=1.40,<2
+google-genai>=2.14,<3
+pydantic>=2.9,<3
+python-dotenv>=1.0,<2
+pillow>=11.0,<14
 # 아이폰 기본 사진 형식(HEIC)을 읽기 위해 필요하다. 없으면 앱은 뜨지만
 # HEIC 업로드만 실패한다 (core/media.py 에서 선택적으로 등록).
-pillow-heif>=0.18
+pillow-heif>=0.18,<2

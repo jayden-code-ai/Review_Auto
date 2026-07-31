@@ -22,7 +22,7 @@ from streamlit.testing.v1 import AppTest
 
 from core import auth, cache, prompts
 from core.analyzer import AnalysisOutcome
-from core.config import load_settings
+from core.config import ConfigError, load_settings
 from core.media import batch_digest, prepare_image
 from core.schemas import (
     ProductAnalysis,
@@ -258,6 +258,48 @@ def t_schema_conversion() -> None:
     types.GenerateContentConfig(tools=[types.Tool(google_search=types.GoogleSearch())])
 
 
+def t_non_ascii_api_key() -> None:
+    """한글이 섞인 API 키를 호출 전에 잡아내는지.
+
+    실제로 겪은 사고다. Secrets 에 자리표시자가 남아 있으면 요청 헤더를 만들 때
+    "'ascii' codec can't encode characters" 라는, 키와 무관해 보이는 오류가 난다.
+    """
+    from core import config
+
+    # load_settings 는 .env 를 override=True 로 다시 읽는다. 그대로 두면 여기서
+    # 넣은 값이 실제 .env 값으로 덮여써져 검증 자체가 무의미해진다.
+    saved = os.environ.get("GEMINI_API_KEY")
+    saved_path = config.ENV_PATH
+    config.ENV_PATH = ROOT / ".env.__없는파일__"
+    try:
+        for bad_key in ("여기에_API_키", "매일AIzaSyTest", "“AIzaSyTest”"):
+            os.environ["GEMINI_API_KEY"] = bad_key
+            try:
+                load_settings()
+            except ConfigError as exc:
+                assert "GEMINI_API_KEY" in str(exc), str(exc)
+            else:
+                raise AssertionError(f"비ASCII 키를 통과시켰습니다: {bad_key!r}")
+
+        # 정상 형태의 키는 통과해야 한다
+        os.environ["GEMINI_API_KEY"] = "AIzaSyTestKey_123-abc"
+        assert load_settings().api_key == "AIzaSyTestKey_123-abc"
+    finally:
+        config.ENV_PATH = saved_path
+        if saved is not None:
+            os.environ["GEMINI_API_KEY"] = saved
+
+    # API 단계까지 새어나간 경우에도 원인을 알려줘야 한다
+    from core.gemini import _wrap
+
+    err = _wrap(
+        UnicodeEncodeError("ascii", "여기에", 0, 1, "ordinal not in range(128)"),
+        "gemini-3.5-flash",
+        "웹검색 단계",
+    )
+    assert "API 키" in str(err), str(err)
+
+
 def t_env_override() -> None:
     """.env 를 고치면 재시작 없이 반영되어야 한다.
 
@@ -446,6 +488,7 @@ CHECKS = [
     ("응답 잘림 감지", t_truncation_detection),
     ("캐시 저장·로딩·삭제", t_cache),
     ("Gemini 스키마 변환", t_schema_conversion),
+    ("비ASCII API 키 차단", t_non_ascii_api_key),
     (".env 재로딩(override)", t_env_override),
     ("모델 이름 사전 검증", t_model_validation),
     ("빈 선택 방어", t_empty_selection_guard),

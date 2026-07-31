@@ -48,8 +48,25 @@ def load_settings() -> Settings:
     api_key = (os.getenv("GEMINI_API_KEY") or "").strip()
     if not api_key or api_key.startswith("여기에"):
         raise ConfigError(
-            "GEMINI_API_KEY 가 설정되지 않았습니다. "
-            "env.example.txt 를 .env 로 복사한 뒤 키를 채워주세요."
+            "GEMINI_API_KEY 가 설정되지 않았습니다.\n\n"
+            "- 로컬: env.example.txt 를 .env 로 복사한 뒤 키를 채우세요.\n"
+            "- Streamlit Cloud: Manage app → Settings → Secrets 에 키를 넣으세요."
+        )
+
+    # API 키는 영문·숫자·기호로만 이루어진다. 한글(자리표시자를 안 지운 경우)이나
+    # 편집기가 바꿔치기한 곡선 따옴표가 섞이면, 요청 헤더를 만드는 단계에서
+    # "'ascii' codec can't encode characters" 라는 엉뚱한 오류가 난다.
+    # 그 메시지만 봐서는 키가 문제라는 걸 알 수 없으므로 여기서 미리 잡는다.
+    if not api_key.isascii():
+        bad = "".join(dict.fromkeys(c for c in api_key if not c.isascii()))
+        raise ConfigError(
+            "GEMINI_API_KEY 에 영문·숫자가 아닌 문자가 섞여 있습니다: "
+            f"{bad}\n\n"
+            "자리표시자를 실제 키로 바꾸지 않았거나, 키를 붙여넣을 때 따옴표나 "
+            "한글이 함께 들어갔을 수 있습니다.\n"
+            "Google AI Studio 에서 받은 키는 `AIza...` 로 시작하는 영문+숫자입니다.\n\n"
+            "- 로컬: `.env` 의 GEMINI_API_KEY 확인\n"
+            "- Streamlit Cloud: Manage app → Settings → Secrets 확인"
         )
 
     try:

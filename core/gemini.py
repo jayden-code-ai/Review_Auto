@@ -32,6 +32,17 @@ def _wrap(exc: Exception, model: str, stage: str) -> GeminiError:
     """
     raw = str(exc)
 
+    # 요청 헤더는 ASCII 로만 만들 수 있다. API 키에 한글이나 곡선 따옴표가
+    # 섞이면 여기서 터지는데, 원문만 보면 키가 원인이라는 걸 알 수 없다.
+    if isinstance(exc, UnicodeEncodeError) or "codec can't encode" in raw:
+        return GeminiError(
+            f"{stage} 실패: API 키에 영문·숫자가 아닌 문자가 섞여 있습니다.\n\n"
+            "자리표시자를 실제 키로 바꾸지 않았거나, 붙여넣을 때 한글이나 따옴표가 "
+            "함께 들어갔을 수 있습니다. 키는 `AIza...` 로 시작하는 영문+숫자입니다.\n\n"
+            "Streamlit Cloud 라면 Manage app → Settings → Secrets 에서 "
+            "GEMINI_API_KEY 를 확인하세요."
+        )
+
     if "NOT_FOUND" in raw or "is not found for API version" in raw:
         return GeminiError(
             f"{stage} 실패: '{model}' 이라는 모델이 없습니다.\n\n"

@@ -69,12 +69,17 @@ def get_settings() -> Settings | None:
 
 
 @st.cache_data(ttl=1800, show_spinner=False)
-def cached_model_list(api_key: str) -> list[str]:
-    """모델 목록은 자주 안 바뀌므로 30분 캐싱한다. 실패해도 앱은 계속 뜬다."""
+def cached_model_list(api_key: str) -> tuple[list[str], str]:
+    """모델 목록은 자주 안 바뀌므로 30분 캐싱한다.
+
+    실패해도 앱은 계속 떠야 하지만, 조용히 넘기면 안 된다. 목록 조회는 API 키로
+    거는 첫 호출이라 여기서 실패하면 키가 잘못된 것인데, 아무 표시도 없으면
+    사용자는 '분석하기' 를 누르고 나서야 알 수 없는 오류를 만나게 된다.
+    """
     try:
-        return list_available_models(api_key)
-    except Exception:  # noqa: BLE001 - 검증 실패가 앱을 막으면 안 된다
-        return []
+        return list_available_models(api_key), ""
+    except Exception as exc:  # noqa: BLE001 - 검증 실패가 앱을 막으면 안 된다
+        return [], str(exc)
 
 
 def render_model_status(settings: Settings) -> None:
@@ -85,7 +90,14 @@ def render_model_status(settings: Settings) -> None:
         f"검색 모델: `{settings.research_model}`"
     )
 
-    available = cached_model_list(settings.api_key)
+    available, probe_error = cached_model_list(settings.api_key)
+    if probe_error:
+        st.error(
+            "**API 키로 모델 목록을 불러오지 못했습니다.**\n\n"
+            "키가 잘못됐을 가능성이 큽니다. 이 상태로는 분석도 실패합니다.\n\n"
+            f"```\n{probe_error[:300]}\n```"
+        )
+        return
     if not available:
         return
 
@@ -120,8 +132,6 @@ def render_sidebar(settings: Settings) -> bool:
                 cached_model_list.clear()
                 try:
                     names = list_available_models(settings.api_key)
-                except GeminiError as exc:
-                    st.error(str(exc))
                 except Exception as exc:  # noqa: BLE001 - 진단 목적
                     st.error(f"모델 목록 조회 실패: {exc}")
                 else:
